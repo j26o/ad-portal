@@ -1,0 +1,45 @@
+body, html {
+  background: $body-background-color;
+
+  font-family: 'Lato', arial, serif;
+  font-size: 20px;
+  line-height: 2rem;
+  color: $foreground-color;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Patua One', Georgia, 'Times New Roman', Times, serif;
+}
+
+a {
+  color: white;
+  text-decoration: underline;
+  padding: 0.8rem 0.8rem 0.8rem 0.4rem;
+
+  transition: all 0.3s ease-in-out;
+
+  &:hover {
+    color: $foreground-color;
+  }
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.container {
+  width: 100vw;
+  height: 100vh;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+
+  z-index: 0;
+}
