@@ -12,18 +12,21 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/j26o/rofolio.git"
+    "url": "git+https://bitbucket.org:trrtechph/ad-portal.git"
   },
   "author": "j26o",
   "bugs": {
-    "url": "https://github.com/j26o/rofolio/issues",
+    "url": "https://bitbucket.org/trrtechph/ad-portal/issues",
     "email": "ro@curiouslab.sg"
   },
-  "homepage": "https://github.com/j26o/rofolio#readme",
+  "homepage": "https://bitbucket.org/trrtechph/ad-portal/src/master/",
   "browserslist": [
-    "last 2 versions",
-    "> 5%"
-  ],
+		"last 3 and_chr versions",
+		"last 3 chrome versions",
+		"last 3 opera versions",
+		"last 3 ios_saf versions",
+		"last 3 safari versions"
+	],
   "private": true,
   "scripts": {
     "clean": "rm dist/bundle.js",
@@ -41,7 +44,12 @@
     "glslify-bundle": "^5.1.1",
     "glslify-deps": "^1.3.2",
     "parcel-bundler": "^1.12.4",
+    "parcel-plugin-static-files-copy": "^2.5.1",
     "prettier": "^2.2.1",
     "sass": "^1.32.7"
-  }
+  },
+	"staticFiles": {
+		"staticPath": "src/assets",
+		"watcherGlob": "**"
+	}
 }
