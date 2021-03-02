@@ -121,6 +121,7 @@ export default class AdPortal {
     t.isPlaying = true
 
 		this.createPortal()
+
 		t.render()
 
     window.addEventListener("resize", t.resize.bind(t))
@@ -157,18 +158,33 @@ export default class AdPortal {
   }
 
 	createPortal() {
+		const t = this
+		// const w = window.innerWidth
+		// const h = window.innerHeight
+		const w = 1024
+		const h = 1024
+
+		t.portalRT = new THREE.WebGLRenderTarget(w, h)
+		t.portalScene = new THREE.Scene()
+		t.portalScene.background = t.options.bgColor
+
+		t.portalCam = new THREE.PerspectiveCamera( 70, w / h, t.options.near, 100 )
+
+    t.portalCam.position.set(0, 0, 3)
+		t.portalCam.lookAt(0,0,0)
+
 		const size = 2
-		const geometry = new THREE.BoxGeometry( size, size, size*2 )
+		const geometry = new THREE.BoxGeometry( size, size, size*2.5 )
 		const material = new THREE.MeshStandardMaterial( { color: 0x333333 } )
 		material.side = THREE.BackSide
 
 		const cube = new THREE.Mesh( geometry, material )
 		cube.receiveShadow = true
-		this.scene.add( cube )
+		t.portalScene.add( cube )
 
-		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.08 )
+		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.8 )
 		ambientLight.name = 'AmbientLight'
-		this.scene.add( ambientLight )
+		t.portalScene.add( ambientLight )
 
 		const pointLight = new THREE.PointLight( 0xffffff, 0.6 )
 		pointLight.name = 'PointLight'
@@ -176,15 +192,22 @@ export default class AdPortal {
 		pointLight.castShadow = true
 
 		pointLight.shadow.radius = 10
-		console.log(pointLight)
-		this.scene.add( pointLight )
+		t.portalScene.add( pointLight )
 
-		const sphereSize = 0.2;
-		const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize );
-		this.scene.add( pointLightHelper );
+		// const sphereSize = 0.2
+		// const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize )
+		// t.portalScene.add( pointLightHelper )
 
-		if(this.model) this.scene.add(this.model.scene)
-		console.log(this.model)
+		if(t.model) t.portalScene.add(t.model.scene)
+
+		const pGeometry = new THREE.PlaneGeometry(1,1,16,16)
+		const pMaterial = new THREE.MeshStandardMaterial({
+			map: t.portalRT.texture,
+			side: THREE.DoubleSide
+		})
+
+		t.portalPlane = new THREE.Mesh( pGeometry, pMaterial )
+		t.scene.add(t.portalPlane)
 	}
 
   stop() {
@@ -217,13 +240,25 @@ export default class AdPortal {
     this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
 	}
 
+	updatePortal() {
+		this.renderer.setRenderTarget(this.portalRT)
+		this.renderer.clear()
+
+		this.renderer.render(this.portalScene, this.portalCam)
+
+		this.renderer.setRenderTarget(null)
+		this.renderer.clear()
+	}
+
   render() {
     if (!this.isPlaying) return
 
 		if(this.isMobile) this.updateUserCamM()
 
-    requestAnimationFrame(this.render.bind(this))
+		this.updatePortal()
     this.renderer.render(this.scene, this.camera)
+
+		requestAnimationFrame(this.render.bind(this))
   }
 }
 
