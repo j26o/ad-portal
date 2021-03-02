@@ -41,6 +41,44 @@ export default class AdPortal {
 		this.loadModel()
   }
 
+	loadModel() {
+		const t = this
+
+		const loader = new GLTFLoader().setPath('models/gltf/')
+		loader.load('MaterialsVariantsShoe.gltf',
+			async (gltf) => {
+				const scale = 5
+				gltf.scene.scale.set(scale, scale, scale)
+				t.model = gltf
+
+				gltf.scene.traverse( function( node ) {
+					if ( node.isMesh ) {
+						node.castShadow = true
+						node.receiveShadow = true
+					}
+				})
+
+				// center gltf
+				const box = new THREE.Box3().setFromObject( gltf.scene );
+        // const size = box.getSize( new THREE.Vector3() ).length();
+        const center = box.getCenter( new THREE.Vector3() );
+				gltf.scene.position.x += ( gltf.scene.position.x - center.x );
+        gltf.scene.position.y += ( gltf.scene.position.y - center.y );
+        gltf.scene.position.z += ( gltf.scene.position.z - center.z );
+
+				t.exportUSDZ(gltf)
+
+				t.init()
+			},
+			(xhr) => {
+				console.log((xhr.loaded / xhr.total * 100 ) + '% loaded')
+			},
+			(error) => {
+				console.log(error)
+			}
+		)
+  }
+
 	init() {
 		const t = this
 		t.scene = new THREE.Scene()
@@ -55,9 +93,12 @@ export default class AdPortal {
     t.renderer.setSize(t.width, t.height)
     t.renderer.setClearColor(t.options.bgColor, 1)
 
-		t.renderer.toneMapping = THREE.ACESFilmicToneMapping
-		t.renderer.toneMappingExposure = 1
-		t.renderer.outputEncoding = THREE.sRGBEncoding
+		// t.renderer.gammaOutput = true;
+    t.renderer.shadowMap.enabled = true
+		t.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		// t.renderer.toneMapping = THREE.ACESFilmicToneMapping
+		// t.renderer.toneMappingExposure = 1
+		// t.renderer.outputEncoding = THREE.sRGBEncoding
 
     t.container.appendChild(t.renderer.domElement)
 
@@ -67,8 +108,6 @@ export default class AdPortal {
 		t.camera.lookAt(0,0,0)
 
 		t.oControls = new OrbitControls(t.camera, t.renderer.domElement)
-
-		t.debug.innerHTML = 'init'
 
 		if(t.isMobile && t.isParallax) {
 			t.rotation = new DeviceOrientationControls(new THREE.PerspectiveCamera())
@@ -81,7 +120,7 @@ export default class AdPortal {
     t.time = 0
     t.isPlaying = true
 
-    t.scene.add(t.gltf.scene)
+		this.createPortal()
 		t.render()
 
     window.addEventListener("resize", t.resize.bind(t))
@@ -91,29 +130,6 @@ export default class AdPortal {
 
     // this.settings()
 	}
-
-	loadModel() {
-		const t = this
-
-		const loader = new GLTFLoader().setPath('models/gltf/')
-		loader.load('MaterialsVariantsShoe.gltf',
-			async (gltf) => {
-				const scale = 8
-				gltf.scene.scale.set(scale, scale, scale)
-				t.gltf = gltf
-
-				t.exportUSDZ(gltf)
-
-				t.init()
-			},
-			(xhr) => {
-				console.log((xhr.loaded / xhr.total * 100 ) + '% loaded')
-			},
-			(error) => {
-				console.log(error)
-			}
-		)
-  }
 
 	async exportUSDZ (gltf) {
 		const exporter = new USDZExporter()
@@ -140,27 +156,35 @@ export default class AdPortal {
     this.camera.updateProjectionMatrix();
   }
 
-	addStage() {
+	createPortal() {
+		const size = 2
+		const geometry = new THREE.BoxGeometry( size, size, size*2 )
+		const material = new THREE.MeshStandardMaterial( { color: 0x333333 } )
+		material.side = THREE.BackSide
 
-	}
+		const cube = new THREE.Mesh( geometry, material )
+		cube.receiveShadow = true
+		this.scene.add( cube )
 
-	addLights() {
-		// ---------------------------------------------------------------------
-		// Ambient light
-		// ---------------------------------------------------------------------
-		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.2 )
+		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.08 )
 		ambientLight.name = 'AmbientLight'
 		this.scene.add( ambientLight )
 
-		// ---------------------------------------------------------------------
-		// DirectLight
-		// ---------------------------------------------------------------------
-		const dirLight = new THREE.DirectionalLight( 0xffffff, 1 )
-		dirLight.target.position.set( 0, 0, - 1 )
-		dirLight.add( dirLight.target )
-		dirLight.lookAt( - 1, - 1, 0 )
-		dirLight.name = 'DirectionalLight'
-		this.scene.add( dirLight )
+		const pointLight = new THREE.PointLight( 0xffffff, 0.6 )
+		pointLight.name = 'PointLight'
+		pointLight.position.set( 0.8, 0.5, 1.8 )
+		pointLight.castShadow = true
+
+		pointLight.shadow.radius = 10
+		console.log(pointLight)
+		this.scene.add( pointLight )
+
+		const sphereSize = 0.2;
+		const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize );
+		this.scene.add( pointLightHelper );
+
+		if(this.model) this.scene.add(this.model.scene)
+		console.log(this.model)
 	}
 
   stop() {
