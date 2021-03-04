@@ -64,7 +64,7 @@ export default class AdPortal {
 		const loader = new GLTFLoader().setPath('models/gltf/')
 		loader.load('MaterialsVariantsShoe.gltf',
 			async (gltf) => {
-				const scale = 4.5
+				const scale = t.options.mScale
 				gltf.scene.scale.set(scale, scale, scale)
 				t.model = gltf
 
@@ -213,11 +213,18 @@ export default class AdPortal {
 		// t.objects.add( pointLightHelper )
 
 		if(t.model) {
-			t.model.scene.position.z = t.model.scene.position.z + 0.5
+			if(t.isMobile) {
+				const scale = t.options.mScale * 0.9
+				t.model.scene.scale.set(scale, scale, scale)
+				t.model.scene.position.z = t.model.scene.position.z - 0.08
+			}else {
+				t.model.scene.position.z = t.model.scene.position.z + 0.5
+			}
+
 			t.objects.add( t.model.scene )
 		}
 
-		t.objects.position.z = -0.8
+		t.objects.position.z = -0.5
 		t.portalScene.add(t.objects)
 
 		const pGeometry = new THREE.PlaneGeometry(1, 1, 32, 32)
@@ -292,17 +299,17 @@ export default class AdPortal {
 	}
 
 	updatePortalCam() {
+		// https://jsantell.com/portals-with-asymmetric-projection/
 		const t = this
 		t.portalCam.position.copy(t.camera.position)
 		t.portalCam.quaternion.copy(t.portal.quaternion)
 
 		const portalPosition = new THREE.Vector3().copy(t.portal.position)
+		const portalHalfWidth = t.portal.scale.x / 2
+		const portalHalfHeight = t.portal.scale.y / 2
 
 		t.portalCam.updateMatrixWorld()
 		t.portalCam.worldToLocal(portalPosition)
-
-		const portalHalfWidth = t.portal.scale.x / 2
-		const portalHalfHeight = t.portal.scale.y / 2
 
 		const left = portalPosition.x - portalHalfWidth
 		const right = portalPosition.x + portalHalfWidth
@@ -367,5 +374,6 @@ new AdPortal({
 	near: 0.1,
 	far: 100,
 	bgColor: new THREE.Color(0xffffff),
-	fov: 70
+	fov: 70,
+	mScale: 4
 })
