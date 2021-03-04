@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+// import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { DeviceOrientationControls } from 'three/examples/jsm/controls/DeviceOrientationControls.js'
 
-import fragment from '../assets/shaders/fragment.glsl'
-import vertex from '../assets/shaders/vertex.glsl'
+// import fragment from '../assets/shaders/fragment.glsl'
+// import vertex from '../assets/shaders/vertex.glsl'
 
 import * as dat from 'dat.gui'
-import gsap from 'gsap'
+// import gsap from 'gsap'
 
 export default class AdPortal {
   constructor(options) {
@@ -17,6 +17,9 @@ export default class AdPortal {
 		t.options = options
 		t.isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 		t.isIOS = (/iPad|iPhone|iPod/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !window.MSStream
+
+		t.isAndroid = /android/i.test(navigator.userAgent)
+
 		t.isPlaying = false
 		t.isParallax = false
 
@@ -47,6 +50,7 @@ export default class AdPortal {
 
 				t.init()
 			} )
+
 		} else {
 			document.addEventListener( 'mousemove', (e)=> {
 				t.mouseX = ( e.clientX - t.windowHalfX )
@@ -61,8 +65,8 @@ export default class AdPortal {
 	loadModel() {
 		const t = this
 
-		const loader = new GLTFLoader().setPath('models/gltf/')
-		loader.load('MaterialsVariantsShoe.gltf',
+		const loader = new GLTFLoader().setPath(this.options.path)
+		loader.load(t.options.product,
 			async (gltf) => {
 				const scale = t.options.mScale
 				gltf.scene.scale.set(scale, scale, scale)
@@ -130,7 +134,7 @@ export default class AdPortal {
 		// t.oControls = new OrbitControls(t.camera, t.renderer.domElement)
 
 		if(t.isMobile && t.isParallax) {
-			t.rotation = new DeviceOrientationControls(new THREE.PerspectiveCamera())
+			t.rotation = new DeviceOrientationControls( new THREE.PerspectiveCamera() )
 		}
 
 		t.environment = new RoomEnvironment()
@@ -147,8 +151,10 @@ export default class AdPortal {
     window.addEventListener("resize", t.resize.bind(t))
     t.resize()
 
-		if(t.isIOS) document.getElementById('usdzCta').classList.remove('hidden')
+		if( t.isIOS ) document.getElementById('usdzCta').classList.remove('hidden')
 		document.getElementById('buy').classList.remove('hidden')
+
+		if( t.isAndroid ) this.createAndroidAR()
 
     // this.settings()
 	}
@@ -170,12 +176,30 @@ export default class AdPortal {
     this.gui.add(this.settings, "progress", 0, 1, 0.01)
   }
 
+	createAndroidAR() {
+		// https://developers.google.com/ar/develop/java/scene-viewer?authuser=2#supported_use_cases
+		const asset = `${window.location.href}${this.options.path}${this.options.product}`
+		console.log(asset)
+
+		const fallbackUrl = `https://arvr.google.com/scene-viewer?file=${asset}&link=https%3A%2F%2Fgoogle.com&title=${this.options.title}`
+
+		const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${asset}&title=${this.options.title}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${fallbackUrl};end;`
+
+		var a = document.createElement('a')
+		a.appendChild( document.createTextNode('View in your space') )
+		a.href = sceneViewerUrl
+		a.classList.add('ar-btn')
+		a.classList.add('android')
+		document.body.appendChild(a)
+	}
+
 	createPortal() {
 		const t = this
 		const w = t.width
 		const h = t.height
 
 		t.portalRT = new THREE.WebGLRenderTarget(t.width, t.height)
+		t.portalRT.texture.generateMipmaps = false;
 		t.portalScene = new THREE.Scene()
 		t.portalScene.receiveShadow = true
 		t.portalScene.background = t.options.bgColor
@@ -375,5 +399,8 @@ new AdPortal({
 	far: 100,
 	bgColor: new THREE.Color(0xffffff),
 	fov: 70,
-	mScale: 4
+	mScale: 4,
+	title: 'My Product',
+	product: 'MaterialsVariantsShoe.gltf',
+	path: 'models/gltf/'
 })

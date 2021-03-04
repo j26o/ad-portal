@@ -48,17 +48,28 @@ a {
   z-index: 0;
 }
 
-.usdz {
+.ar-btn {
 	position: fixed;
 	z-index: 1;
-	bottom: 0.25rem;
-	left: 0;
-	// transform: translateX(-50%) scale(0.8);
-	// transform: scale(0.8);
+	bottom: 1rem;
+	left: 0.5rem;
 
 	a {
 		display: block;
 		padding: 0;
+	}
+
+	&.android {
+		font-size: 0.6rem;
+		color: #333;
+		padding: 0 0.5rem 0 2rem;
+		text-transform: uppercase;
+		text-decoration: none;
+
+		background: url(../assets/img/ar-android.png) no-repeat 0.5rem center white;
+		background-size: 25px 25px;
+
+		border-radius: 0.25rem;
 	}
 
 	.arkit-img {}

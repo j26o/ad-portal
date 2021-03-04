@@ -21,12 +21,12 @@
   },
   "homepage": "https://bitbucket.org/trrtechph/ad-portal/src/master/",
   "browserslist": [
-		"last 3 and_chr versions",
-		"last 3 chrome versions",
-		"last 3 opera versions",
-		"last 3 ios_saf versions",
-		"last 3 safari versions"
-	],
+    "last 3 and_chr versions",
+    "last 3 chrome versions",
+    "last 3 opera versions",
+    "last 3 ios_saf versions",
+    "last 3 safari versions"
+  ],
   "private": true,
   "scripts": {
     "clean": "rm dist/bundle.js",
@@ -49,8 +49,8 @@
     "prettier": "^2.2.1",
     "sass": "^1.32.7"
   },
-	"staticFiles": {
-		"staticPath": "src/assets",
-		"watcherGlob": "**"
-	}
+  "staticFiles": {
+    "staticPath": "src/assets",
+    "watcherGlob": "**"
+  }
 }
