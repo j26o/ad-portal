@@ -36,10 +36,9 @@ export default class AdPortal {
 		t.windowHalfY = t.height / 2;
 
 		if(t.isMobile) {
-			const startButton = document.getElementById('start')
-			startButton.classList.remove('hidden')
-			startButton.addEventListener( 'click', function () {
-				startButton.remove()
+			t.startButton = document.getElementById('start')
+			t.startButton.addEventListener( 'click', function () {
+				t.startButton.remove()
 
 				t.isPlaying = false
 				t.renderer.clear()
@@ -152,7 +151,9 @@ export default class AdPortal {
     t.resize()
 
 		if( t.isIOS ) document.getElementById('usdzCta').classList.remove('hidden')
+		if( t.isMobile ) t.startButton.classList.remove('hidden')
 		document.getElementById('buy').classList.remove('hidden')
+		document.getElementById('loading').remove()
 
 		if( t.isAndroid ) this.createAndroidAR()
 
