@@ -54,7 +54,7 @@ export default class AdPortal {
 			} )
 		}
 
-		t.debug =  document.getElementById('debug')
+		// t.debug =  document.getElementById('debug')
 		this.loadModel()
   }
 
@@ -64,7 +64,7 @@ export default class AdPortal {
 		const loader = new GLTFLoader().setPath('models/gltf/')
 		loader.load('MaterialsVariantsShoe.gltf',
 			async (gltf) => {
-				const scale = 5
+				const scale = 4.5
 				gltf.scene.scale.set(scale, scale, scale)
 				t.model = gltf
 
@@ -76,12 +76,12 @@ export default class AdPortal {
 				})
 
 				// center gltf
-				const box = new THREE.Box3().setFromObject( gltf.scene );
+				const box = new THREE.Box3().setFromObject( gltf.scene )
         // const size = box.getSize( new THREE.Vector3() ).length();
-        const center = box.getCenter( new THREE.Vector3() );
-				gltf.scene.position.x += ( gltf.scene.position.x - center.x );
-        gltf.scene.position.y += ( gltf.scene.position.y - center.y );
-        gltf.scene.position.z += ( gltf.scene.position.z - center.z );
+        const center = box.getCenter( new THREE.Vector3() )
+				gltf.scene.position.x += ( gltf.scene.position.x - center.x )
+        gltf.scene.position.y += ( gltf.scene.position.y - center.y )
+        gltf.scene.position.z += ( gltf.scene.position.z - center.z )
 
 				t.exportUSDZ(gltf)
 
@@ -104,8 +104,8 @@ export default class AdPortal {
     // this.scene.background = new THREE.Color(this.options.bgColor)
 
     t.renderer = new THREE.WebGLRenderer()
-    // t.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    t.renderer.setPixelRatio(Math.min(2, t.isMobile ? window.devicePixelRatio : 1))
+    t.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // t.renderer.setPixelRatio(Math.min(2, t.isMobile ? window.devicePixelRatio : 1))
     t.renderer.setSize(t.width, t.height)
     t.renderer.setClearColor(t.options.bgColor, 1)
 
@@ -120,9 +120,12 @@ export default class AdPortal {
     t.container.appendChild(t.renderer.domElement)
 
     t.camera = new THREE.PerspectiveCamera( t.options.fov, t.aspect, t.options.near, t.options.far )
+    t.cameraStatic = new THREE.PerspectiveCamera( t.options.fov, t.aspect, t.options.near, t.options.far )
 
     t.camera.position.set(0, 0, 1)
+    t.cameraStatic.position.set(0, 0, 1)
 		t.camera.lookAt(0,0,0)
+		t.cameraStatic.lookAt(0,0,0)
 
 		// t.oControls = new OrbitControls(t.camera, t.renderer.domElement)
 
@@ -145,6 +148,7 @@ export default class AdPortal {
     t.resize()
 
 		if(t.isIOS) document.getElementById('usdzCta').classList.remove('hidden')
+		document.getElementById('buy').classList.remove('hidden')
 
     // this.settings()
 	}
@@ -181,6 +185,8 @@ export default class AdPortal {
     t.portalCam.position.set(0, 0, 2)
 		t.portalCam.lookAt(t.portalScene.position)
 
+		t.objects = new THREE.Group()
+
 		const size = 2
 		const geometry = new THREE.BoxGeometry( size, size, size * 2.5 )
 		const material = new THREE.MeshStandardMaterial( { color: 0x333333 } )
@@ -188,11 +194,11 @@ export default class AdPortal {
 
 		const cube = new THREE.Mesh( geometry, material )
 		cube.receiveShadow = true
-		t.portalScene.add( cube )
+		t.objects.add( cube )
 
 		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.8 )
 		ambientLight.name = 'AmbientLight'
-		t.portalScene.add( ambientLight )
+		t.objects.add( ambientLight )
 
 		const pointLight = new THREE.PointLight( 0xffffff, 0.6 )
 		pointLight.name = 'PointLight'
@@ -200,30 +206,29 @@ export default class AdPortal {
 		pointLight.castShadow = true
 
 		pointLight.shadow.radius = 10
-		t.portalScene.add( pointLight )
+		t.objects.add( pointLight )
 
 		// const sphereSize = 0.2
 		// const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize )
-		// t.portalScene.add( pointLightHelper )
+		// t.objects.add( pointLightHelper )
 
-		if(t.model) t.portalScene.add(t.model.scene)
+		if(t.model) {
+			t.model.scene.position.z = t.model.scene.position.z + 0.5
+			t.objects.add( t.model.scene )
+		}
 
-		t.pw = t.aspect > 1 ? 1 : 1 / t.aspect
-		t.ph = t.aspect > 1 ? 1 / t.aspect : 1
-		t.ang_rad = t.camera.fov * Math.PI / 180
-		t.fov_y = t.camera.position.z * Math.tan(t.ang_rad / 2) * 2
+		t.objects.position.z = -0.8
+		t.portalScene.add(t.objects)
 
-		// const pGeometry = new THREE.PlaneGeometry(t.fov_y * t.aspect, t.fov_y, 32, 32)
-		// const pGeometry = new THREE.PlaneGeometry(t.visibleWidthAtZDepth(0, t.camera), t.visibleHeightAtZDepth(0, t.camera), 32, 32)
 		const pGeometry = new THREE.PlaneGeometry(1, 1, 32, 32)
 		const pMaterial = new THREE.MeshStandardMaterial({
 			map: t.portalRT.texture,
 			side: THREE.DoubleSide
 		})
 
-		t.portalPlane = new THREE.Mesh( pGeometry, pMaterial )
-		t.portalPlane.scale.set(t.visibleWidthAtZDepth(0, t.camera), t.visibleHeightAtZDepth(0, t.camera), 1)
-		t.scene.add(t.portalPlane)
+		t.portal = new THREE.Mesh( pGeometry, pMaterial )
+		t.portal.scale.set(t.visibleWidthAtZDepth(0, t.camera), t.visibleHeightAtZDepth(0, t.camera), 1)
+		t.scene.add(t.portal)
 	}
 
   stop() {
@@ -251,7 +256,10 @@ export default class AdPortal {
     this.camera.aspect = this.aspect
     this.camera.updateProjectionMatrix()
 
-		this.portalPlane.scale.set(this.visibleWidthAtZDepth(0, this.camera), this.visibleHeightAtZDepth(0, this.camera), 1)
+    this.cameraStatic.aspect = this.aspect
+    this.cameraStatic.updateProjectionMatrix()
+
+		this.portal.scale.set(this.visibleWidthAtZDepth(0, this.camera), this.visibleHeightAtZDepth(0, this.camera), 1)
   }
 
 	updateUserCam() {
@@ -263,21 +271,53 @@ export default class AdPortal {
 			if (!this.rotation.deviceOrientation) return
 
 			const { beta, gamma } = this.rotation.deviceOrientation
-			this.debug.innerHTML = `orientattion: ${beta}, ${gamma}, ${this.rotation}`
+			// this.debug.innerHTML = `orientattion: ${beta}, ${gamma}, ${this.rotation}`
 
 			if (!beta || !gamma) return
 
 			this.camera.lookAt(0, 0, 0)
 
 			this.camera.position.x = -gamma / 90
-			// this.camera.position.y = beta / 90
-			this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
-		} else {
-			// this.camera.position.x = this.mouseX / this.windowHalfX
-			this.camera.position.x += ( (this.mouseX / this.windowHalfX) - this.camera.position.x ) * .05
+			this.camera.position.y = beta / 90
+
 			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
+		} else {
 			this.camera.lookAt(0, 0, 0)
+
+			// this.camera.position.x = this.mouseX / this.windowHalfX
+			this.camera.position.x += ( (this.mouseX / this.windowHalfX) * 0.2 - this.camera.position.x ) * .05
+			this.camera.position.y -= ( (this.mouseY / this.windowHalfY) * 0.2 + this.camera.position.y ) * .05
+			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
 		}
+	}
+
+	updatePortalCam() {
+		const t = this
+		t.portalCam.position.copy(t.camera.position)
+		t.portalCam.quaternion.copy(t.portal.quaternion)
+
+		const portalPosition = new THREE.Vector3().copy(t.portal.position)
+
+		t.portalCam.updateMatrixWorld()
+		t.portalCam.worldToLocal(portalPosition)
+
+		const portalHalfWidth = t.portal.scale.x / 2
+		const portalHalfHeight = t.portal.scale.y / 2
+
+		const left = portalPosition.x - portalHalfWidth
+		const right = portalPosition.x + portalHalfWidth
+		const top = portalPosition.y + portalHalfHeight
+		const bottom = portalPosition.y - portalHalfHeight
+
+		const distance = Math.abs(portalPosition.z)
+		const scale = t.options.near / distance
+
+		const scaledLeft = left * scale
+		const scaledRight = right * scale
+		const scaledTop = top * scale
+		const scaledBottom = bottom * scale
+
+		t.portalCam.projectionMatrix.makePerspective(scaledLeft, scaledRight, scaledTop, scaledBottom, t.options.near, 10)
 	}
 
 	updatePortal() {
@@ -294,9 +334,10 @@ export default class AdPortal {
     if (!this.isPlaying) return
 
 		this.updateUserCam()
+		this.updatePortalCam()
 
 		this.updatePortal()
-    this.renderer.render(this.scene, this.camera)
+    this.renderer.render(this.scene, this.cameraStatic)
 
 		requestAnimationFrame(this.render.bind(this))
   }
@@ -325,8 +366,6 @@ new AdPortal({
 	dom: document.getElementById("app"),
 	near: 0.1,
 	far: 100,
-	portalWidth: 1/2,
-	portalHeight: 1/2,
 	bgColor: new THREE.Color(0xffffff),
 	fov: 70
 })
