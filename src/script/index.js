@@ -167,6 +167,8 @@ export default class AdPortal {
 		t.info = document.getElementById('info')
 		t.modal = document.getElementById('modal')
 
+		t.info.classList.remove('hidden')
+
 		t.info.addEventListener('click', ()=>{
 			t.modal.classList.toggle('show')
 		})
