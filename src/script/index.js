@@ -4,6 +4,12 @@ import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 // import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { DeviceOrientationControls } from 'three/examples/jsm/controls/DeviceOrientationControls.js'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+
 
 // import fragment from '../assets/shaders/fragment.glsl'
 // import vertex from '../assets/shaders/vertex.glsl'
@@ -32,8 +38,10 @@ export default class AdPortal {
 		t.mouseX = 0
 		t.mouseY = 0
 
-		t.windowHalfX = t.width / 2;
-		t.windowHalfY = t.height / 2;
+		t.windowHalfX = t.width / 2
+		t.windowHalfY = t.height / 2
+
+		t.postprocessing = {}
 
 		if(t.isMobile) {
 			t.startButton = document.getElementById('start')
@@ -74,7 +82,7 @@ export default class AdPortal {
 				gltf.scene.traverse( function( node ) {
 					if ( node.isMesh ) {
 						node.castShadow = true
-						node.receiveShadow = true
+						// node.receiveShadow = true
 					}
 				})
 
@@ -102,23 +110,24 @@ export default class AdPortal {
 	init() {
 		const t = this
 		t.scene = new THREE.Scene()
-		t.scene.receiveShadow = true
+		// t.scene.receiveShadow = true
 		// this.scene.fog = new THREE.Fog(this.options.bgColor, this.options.near, 88)
     // this.scene.background = new THREE.Color(this.options.bgColor)
 
     t.renderer = new THREE.WebGLRenderer()
-    t.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    // t.renderer.setPixelRatio(Math.min(2, t.isMobile ? window.devicePixelRatio : 1))
+    // t.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    t.renderer.setPixelRatio(Math.min(2, t.isMobile ? window.devicePixelRatio : 1))
     t.renderer.setSize(t.width, t.height)
     t.renderer.setClearColor(t.options.bgColor, 1)
 
     t.renderer.shadowMap.enabled = true
 		t.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		// t.renderer.gammaOutput = true
 
-		t.renderer.toneMappingExposure = 1
-		t.renderer.gammaOutput = true
 		t.renderer.toneMapping = THREE.ACESFilmicToneMapping
+		// t.renderer.toneMapping = THREE.CineonToneMapping
 		t.renderer.outputEncoding = THREE.sRGBEncoding
+		t.renderer.toneMappingExposure = 1
 
     t.container.appendChild(t.renderer.domElement)
 
@@ -140,10 +149,10 @@ export default class AdPortal {
 		t.pmremGenerator = new THREE.PMREMGenerator( t.renderer )
 		t.scene.environment = t.pmremGenerator.fromScene( t.environment ).texture
 
-    t.time = 0
     t.isPlaying = true
 
 		this.createPortal()
+		this.initPostprocessing()
 
 		t.render()
 
@@ -160,6 +169,29 @@ export default class AdPortal {
     // this.settings()
 	}
 
+	initPostprocessing() {
+		const renderPass = new RenderPass( this.scene, this.cameraStatic )
+
+		const pixelRatio = this.renderer.getPixelRatio()
+		this.fxaaPass = new ShaderPass( FXAAShader )
+		this.fxaaPass.material.uniforms[ 'resolution' ].value.x = 1 / ( this.container.offsetWidth * pixelRatio )
+		this.fxaaPass.material.uniforms[ 'resolution' ].value.y = 1 / ( this.container.offsetHeight * pixelRatio )
+
+		this.bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 )
+		this.bloomPass.threshold = this.options.bloomThreshold
+		this.bloomPass.strength = this.options.bloomStrength
+		this.bloomPass.radius = this.options.bloomRadius
+
+		this.composer = new EffectComposer( this.renderer )
+
+		this.composer.addPass( renderPass )
+		this.composer.addPass( this.fxaaPass )
+		this.composer.addPass( this.bloomPass )
+
+		this.postprocessing.composer = this.composer
+
+	}
+
 	async exportUSDZ (gltf) {
 		const exporter = new USDZExporter()
 		const arraybuffer = await exporter.parse( gltf.scene )
@@ -168,14 +200,6 @@ export default class AdPortal {
 		const link = document.getElementById( 'usdz' )
 		link.href = URL.createObjectURL( blob )
 	}
-
-  settings() {
-    this.settings = {
-      progress: 0,
-    }
-    this.gui = new dat.GUI()
-    this.gui.add(this.settings, "progress", 0, 1, 0.01)
-  }
 
 	createAndroidAR() {
 		// https://developers.google.com/ar/develop/java/scene-viewer?authuser=2#supported_use_cases
@@ -200,10 +224,10 @@ export default class AdPortal {
 		const h = t.height
 
 		t.portalRT = new THREE.WebGLRenderTarget(t.width, t.height)
-		t.portalRT.texture.generateMipmaps = false;
+		t.portalRT.texture.generateMipmaps = false
 		t.portalScene = new THREE.Scene()
-		t.portalScene.receiveShadow = true
-		t.portalScene.background = t.options.bgColor
+		// t.portalScene.receiveShadow = true
+		// t.portalScene.background = t.options.bgColor
 
 		t.portalCam = new THREE.PerspectiveCamera( t.options.fov, t.aspect, t.options.near, t.options.far )
 
@@ -216,26 +240,13 @@ export default class AdPortal {
 		const geometry = new THREE.BoxGeometry( size, size, size * 2.5 )
 		const material = new THREE.MeshStandardMaterial( { color: 0x333333 } )
 		material.side = THREE.BackSide
+		material.roughness = 0.8
+		material.metalness = 0.2
 
 		const cube = new THREE.Mesh( geometry, material )
 		cube.receiveShadow = true
+
 		t.objects.add( cube )
-
-		const ambientLight = new THREE.AmbientLight( 0xffffff, 0.8 )
-		ambientLight.name = 'AmbientLight'
-		t.objects.add( ambientLight )
-
-		const pointLight = new THREE.PointLight( 0xffffff, 0.6 )
-		pointLight.name = 'PointLight'
-		pointLight.position.set( 0.8, 0.5, 1.8 )
-		pointLight.castShadow = true
-
-		pointLight.shadow.radius = 10
-		t.objects.add( pointLight )
-
-		// const sphereSize = 0.2
-		// const pointLightHelper = new THREE.PointLightHelper( pointLight, sphereSize )
-		// t.objects.add( pointLightHelper )
 
 		if(t.model) {
 			if(t.isMobile) {
@@ -248,6 +259,8 @@ export default class AdPortal {
 
 			t.objects.add( t.model.scene )
 		}
+
+		t.addLighting()
 
 		t.objects.position.z = -0.5
 		t.portalScene.add(t.objects)
@@ -263,6 +276,116 @@ export default class AdPortal {
 		t.scene.add(t.portal)
 	}
 
+	addLighting() {
+		const t = this
+
+		t.ambientLight = new THREE.AmbientLight( 0xffffff, this.options.ambientLightIntensity )
+		t.objects.add( t.ambientLight )
+
+		t.pointLight = new THREE.PointLight( 0x888888, t.options.pointLightIntensity )
+		t.pointLight.position.set( 0.5, 1, 0 )
+		t.pointLight.castShadow = false
+		t.pointLight.shadow.radius = 8
+		t.objects.add( t.pointLight )
+
+		t.pointLight2 = new THREE.PointLight( 0xffffff, t.options.pointLight2Intensity )
+		t.pointLight2.name = 'PointLight2'
+		t.pointLight2.position.set( -0.5, 0.4, 1 )
+		t.pointLight2.castShadow = false
+		t.objects.add( t.pointLight2 )
+
+		t.spotLight
+		t.spotLight = new THREE.SpotLight( 0xffffff, t.options.spotLightIntensity )
+		t.spotLight.position.set( 0, 0.2, 2 )
+
+		t.spotLight.castShadow = true
+		t.spotLight.shadow.radius = 8
+
+		t.spotLight.angle = t.options.spotLightAngle
+		t.spotLight.penumbra = t.options.spotLightPenumbra
+		t.spotLight.decay = t.options.spotLightDecay
+		t.spotLight.distance = t.options.spotLightDistance
+
+		t.spotLight.shadow.mapSize.width = 512
+		t.spotLight.shadow.mapSize.height = 512
+
+		t.spotLight.shadow.camera.near = t.options.spotLightNear
+		t.spotLight.shadow.camera.far = t.options.spotLightFar
+		t.spotLight.shadow.camera.fov = t.options.spotLightFov
+
+		t.objects.add( t.spotLight )
+
+		// t.lightHelper = new THREE.SpotLightHelper( t.spotLight )
+		// t.objects.add( t.lightHelper )
+
+		// const sphereSize = 0.2
+		// const pointLightHelper = new THREE.PointLightHelper( t.pointLight2, sphereSize )
+		// t.objects.add( pointLightHelper )
+	}
+
+	settings() {
+		const t = this
+    t.gui = new dat.GUI()
+
+		t.gui.add( t.options, 'bloomThreshold', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.bloomPass.threshold = Number( value )
+		})
+
+		t.gui.add( t.options, 'bloomStrength', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.bloomPass.strength = Number( value )
+		})
+
+		t.gui.add( t.options, 'bloomRadius', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.bloomPass.radius = Number( value )
+		})
+
+		t.gui.add( t.options, 'ambientLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.ambientLight.intensity = Number( value )
+		})
+
+		t.gui.add( t.options, 'pointLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight.intensity = Number( value )
+		})
+
+		t.gui.add( t.options, 'pointLight2Intensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight2.intensity = Number( value )
+		})
+
+		const pointLight = {
+			y: 0.5
+		}
+
+		t.gui.add( pointLight, 'y', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight2.position.y = Number( value )
+		})
+
+		t.gui.add( t.options, 'spotLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.intensity = Number( value )
+		})
+		t.gui.add( t.options, 'spotLightNear', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.shadow.camera.near = Number( value )
+		})
+		t.gui.add( t.options, 'spotLightFar', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.shadow.camera.far = Number( value )
+		})
+		t.gui.add( t.options, 'spotLightFov', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.shadow.camera.fov = Number( value )
+		})
+
+		t.gui.add( t.options, 'spotLightAngle', 0, Math.PI / 3 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.angle = Number( value )
+		})
+		t.gui.add( t.options, 'spotLightDistance', 0, 100 ).onChange( function ( value ) {
+			t.spotLight.distance = Number( value )
+		})
+		t.gui.add( t.options, 'spotLightPenumbra', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.shadow.penumbra = Number( value )
+		})
+		t.gui.add( t.options, 'spotLightDecay', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.spotLight.decay = Number( value )
+		})
+  }
+
   stop() {
     this.isPlaying = false;
   }
@@ -275,23 +398,29 @@ export default class AdPortal {
   }
 
 	resize() {
-    this.width = this.container.offsetWidth
-    this.height = this.container.offsetHeight
+		const t = this
+    t.width = t.container.offsetWidth
+    t.height = t.container.offsetHeight
 
-		this.aspect = this.width / this.height
+		t.aspect = t.width / t.height
 
-    this.renderer.setSize(this.width, this.height)
+    t.renderer.setSize(t.width, t.height)
 
-		this.portalCam.aspect = this.aspect
-		this.portalCam.updateProjectionMatrix()
+		t.portalCam.aspect = t.aspect
+		t.portalCam.updateProjectionMatrix()
 
-    this.camera.aspect = this.aspect
-    this.camera.updateProjectionMatrix()
+    t.camera.aspect = t.aspect
+    t.camera.updateProjectionMatrix()
 
-    this.cameraStatic.aspect = this.aspect
-    this.cameraStatic.updateProjectionMatrix()
+    t.cameraStatic.aspect = t.aspect
+    t.cameraStatic.updateProjectionMatrix()
 
-		this.portal.scale.set(this.visibleWidthAtZDepth(0, this.camera), this.visibleHeightAtZDepth(0, this.camera), 1)
+		t.portal.scale.set(t.visibleWidthAtZDepth(0, t.camera), t.visibleHeightAtZDepth(0, t.camera), 1)
+
+		const pixelRatio = t.renderer.getPixelRatio()
+		t.fxaaPass.material.uniforms[ 'resolution' ].value.x = 1 / ( t.container.offsetWidth * pixelRatio )
+		t.fxaaPass.material.uniforms[ 'resolution' ].value.y = 1 / ( t.container.offsetHeight * pixelRatio )
+		t.postprocessing.composer.setSize( t.width, t.height )
   }
 
 	updateUserCam() {
@@ -317,8 +446,8 @@ export default class AdPortal {
 			this.camera.lookAt(0, 0, 0)
 
 			// this.camera.position.x = this.mouseX / this.windowHalfX
-			this.camera.position.x += ( (this.mouseX / this.windowHalfX) * 0.2 - this.camera.position.x ) * .05
-			this.camera.position.y -= ( (this.mouseY / this.windowHalfY) * 0.2 + this.camera.position.y ) * .05
+			this.camera.position.x += ( (this.mouseX / this.windowHalfX) * 0.3 - this.camera.position.x ) * .05
+			this.camera.position.y -= ( (this.mouseY / this.windowHalfY) * 0.3 + this.camera.position.y ) * .05
 			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
 		}
 	}
@@ -369,7 +498,8 @@ export default class AdPortal {
 		this.updatePortalCam()
 
 		this.updatePortal()
-    this.renderer.render(this.scene, this.cameraStatic)
+    // this.renderer.render(this.scene, this.cameraStatic)
+		this.postprocessing.composer.render()
 
 		requestAnimationFrame(this.render.bind(this))
   }
@@ -403,5 +533,21 @@ new AdPortal({
 	mScale: 4,
 	title: 'My Product',
 	product: 'MaterialsVariantsShoe.gltf',
-	path: 'models/gltf/'
+	path: 'models/gltf/',
+	exposure: 1,
+	bloomThreshold: 0,
+	bloomStrength: 0.1,
+	bloomRadius: 0.1,
+	ambientLightIntensity: 0.08,
+	pointLightIntensity: 0.4,
+	pointLight2Intensity: 0.6,
+	spotLightIntensity: 0.2,
+	spotLightNear: 0.5,
+	spotLightFar: 2,
+	spotLightFov: 1.5,
+	spotLightAngle: 0.8,
+	spotLightDistance: 8,
+	spotLightPenumbra: 0.3,
+	spotLightDecay: 0.5
+
 })
