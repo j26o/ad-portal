@@ -164,6 +164,13 @@ export default class AdPortal {
 		document.getElementById('buy').classList.remove('hidden')
 		document.getElementById('loading').remove()
 
+		t.info = document.getElementById('info')
+		t.modal = document.getElementById('modal')
+
+		t.info.addEventListener('click', ()=>{
+			t.modal.classList.toggle('show')
+		})
+
 		if( t.isAndroid ) this.createAndroidAR()
 
     // this.settings()

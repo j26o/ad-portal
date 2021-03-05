@@ -48,33 +48,6 @@ a {
   z-index: 0;
 }
 
-.ar-btn {
-	position: fixed;
-	z-index: 1;
-	bottom: 1rem;
-	left: 0.5rem;
-
-	a {
-		display: block;
-		padding: 0;
-	}
-
-	&.android {
-		font-size: 0.6rem;
-		color: #333;
-		padding: 0 0.5rem 0 2rem;
-		text-transform: uppercase;
-		text-decoration: none;
-
-		background: url(../assets/img/ar-android.png) no-repeat 0.5rem center white;
-		background-size: 25px 25px;
-
-		border-radius: 0.25rem;
-	}
-
-	.arkit-img {}
-}
-
 .overlay {
 	position: fixed;
 	left: 0;
@@ -122,6 +95,90 @@ a {
 		bottom: 1rem;
 		right: 0.5rem;
 	}
+
+	&.ar {
+		bottom: 1rem;
+		left: 0.5rem;
+
+		padding: 0;
+
+		a {
+			display: block;
+			padding: 0;
+		}
+
+		&.android {
+			font-size: 0.6rem;
+			color: #333;
+			padding: 0 0.5rem 0 2rem;
+			text-transform: uppercase;
+			text-decoration: none;
+
+			background: url(../assets/img/ar-android.png) no-repeat 0.5rem center white;
+			background-size: 25px 25px;
+
+			border-radius: 0.25rem;
+		}
+
+		.arkit-img {}
+	}
+
+	&.info {
+		top: 1rem;
+		left: 1rem;
+		padding: 0;
+		background: none;
+		cursor: pointer;
+
+		img {
+			width: 1.5rem;
+			height: 1.5rem;
+		}
+	}
+}
+
+.modal {
+	max-height: calc(80vh - 5rem);
+	max-width: 20rem;
+	width: 90vw;
+
+	position: fixed;
+	top:50%;
+	left: 50%;
+	z-index: 2;
+
+	transform: translate(-190vw, -50%);
+	padding: 1rem;
+	border-radius: 0.5rem;
+	background: rgba(255,255,255,0.7);
+	overflow: hidden;
+
+	transition: all ease-in-out 0.6s;
+
+	&.show {
+		transform: translate(-50%, -50%);
+	}
+
+	&_wrap {
+		width: 100%;
+		max-height: calc(80vh - 7rem);
+		overflow-y: auto;
+
+		p {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+
+			font-size: 0.8rem;
+
+			line-height: 1.2rem;
+			margin-bottom: 1rem;
+
+			&:last-child{
+				margin-bottom: 0;
+			}
+		}
+	}
 }
 
 .debug {
@@ -139,4 +196,15 @@ a {
   25% { opacity: 1 }
   50% { opacity: 1 }
   100% { opacity: 0 }
+}
+
+@media only screen and (min-width: 600px) {
+  .modal {
+		left: 1rem;
+		transform: translate(-110vw, -50%);
+
+		&.show {
+			transform: translate(0, -50%);
+		}
+	}
 }
