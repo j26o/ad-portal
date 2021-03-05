@@ -35,8 +35,14 @@ export default class AdPortal {
 
 		t.aspect = t.width / t.height
 
-		t.mouseX = 0
-		t.mouseY = 0
+		t.mouse = {
+			dx: 0,
+			dy: 0,
+			cx: 0,
+			cy: 0
+		}
+
+		t.mouseDown = false
 
 		t.windowHalfX = t.width / 2
 		t.windowHalfY = t.height / 2
@@ -60,8 +66,8 @@ export default class AdPortal {
 
 		} else {
 			document.addEventListener( 'mousemove', (e)=> {
-				t.mouseX = ( e.clientX - t.windowHalfX )
-				t.mouseY = ( e.clientY - t.windowHalfY )
+				t.mouse.dx = ( e.clientX - t.windowHalfX )
+				t.mouse.dy = ( e.clientY - t.windowHalfY )
 			} )
 		}
 
@@ -172,6 +178,28 @@ export default class AdPortal {
 		t.info.addEventListener('click', ()=>{
 			t.modal.classList.toggle('show')
 		})
+
+		// https://uxdesign.cc/implementing-a-custom-drag-event-function-in-javascript-and-three-js-dc79ee545d85
+		t.renderer.domElement.addEventListener('mousemove', function (e) {
+			if (!t.mouseDown) {return}
+			e.preventDefault();
+			t.mouse.deltaX = e.clientX - t.mouse.cx
+			t.mouse.deltaY = e.clientY - t.mouse.cy
+			t.mouse.cx = e.clientX
+			t.mouse.cy = e.clientY
+		}, false)
+
+		t.renderer.domElement.addEventListener('mousedown', function (e) {
+			e.preventDefault()
+			t.mouseDown = true
+			t.mouse.cx = e.clientX
+			t.mouse.cy = e.clientY
+		}, false);
+
+		t.renderer.domElement.addEventListener('mouseup', function (e) {
+				e.preventDefault()
+				t.mouseDown = false
+		}, false);
 
 		if( t.isAndroid ) this.createAndroidAR()
 
@@ -455,8 +483,8 @@ export default class AdPortal {
 			this.camera.lookAt(0, 0, 0)
 
 			// this.camera.position.x = this.mouseX / this.windowHalfX
-			this.camera.position.x += ( (this.mouseX / this.windowHalfX) * 0.3 - this.camera.position.x ) * .05
-			this.camera.position.y -= ( (this.mouseY / this.windowHalfY) * 0.3 + this.camera.position.y ) * .05
+			this.camera.position.x += ( (this.mouse.dx / this.windowHalfX) * 0.3 - this.camera.position.x ) * .05
+			this.camera.position.y -= ( (this.mouse.dy / this.windowHalfY) * 0.3 + this.camera.position.y ) * .05
 			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
 		}
 	}
@@ -500,8 +528,17 @@ export default class AdPortal {
 		this.renderer.clear()
 	}
 
+	rotateModel() {
+		if(!this.mouseDown) return
+		if(!this.model) return
+		this.model.scene.rotation.y += this.mouse.deltaX / 100
+    this.model.scene.rotation.x += this.mouse.deltaY / 100
+	}
+
   render() {
     if (!this.isPlaying) return
+
+		this.rotateModel()
 
 		this.updateUserCam()
 		this.updatePortalCam()
