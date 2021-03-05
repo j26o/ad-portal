@@ -39,7 +39,9 @@ export default class AdPortal {
 			dx: 0,
 			dy: 0,
 			cx: 0,
-			cy: 0
+			cy: 0,
+			deltaX: 0,
+			deltaY: 0
 		}
 
 		t.mouseDown = false
@@ -61,13 +63,32 @@ export default class AdPortal {
 
 				t.isParallax = true
 
-				t.init()
-			} )
+				t.mtouch = document.getElementById('mtouch')
+				t.mtouch.classList.remove('hidden')
 
-		} else {
-			document.addEventListener( 'mousemove', (e)=> {
-				t.mouse.dx = ( e.clientX - t.windowHalfX )
-				t.mouse.dy = ( e.clientY - t.windowHalfY )
+				t.mtouch.addEventListener('touchstart', function (e) {
+					t.mouseDown = true
+
+					t.mouse.cx = e.changedTouches[0].pageX
+					t.mouse.cy = e.changedTouches[0].pageY
+				}, true)
+
+				t.mtouch.addEventListener('touchend', function (e) {
+					e.preventDefault()
+					t.mouseDown = false
+				}, true)
+
+				t.mtouch.addEventListener( 'touchmove', (e)=> {
+					if(e.changedTouches[0]) {
+						t.mouse.deltaX = e.changedTouches[0].pageX - t.mouse.cx
+						t.mouse.deltaY = e.changedTouches[0].pageY - t.mouse.cy
+						t.mouse.cx = e.changedTouches[0].pageX
+						t.mouse.cy = e.changedTouches[0].pageY
+					}
+
+				}, true )
+
+				t.init()
 			} )
 		}
 
@@ -162,7 +183,7 @@ export default class AdPortal {
 
 		t.render()
 
-    window.addEventListener("resize", t.resize.bind(t))
+		window.addEventListener("resize", t.resize.bind(t))
     t.resize()
 
 		if( t.isIOS ) document.getElementById('usdzCta').classList.remove('hidden')
@@ -175,35 +196,45 @@ export default class AdPortal {
 
 		t.info.classList.remove('hidden')
 
-		t.info.addEventListener('click', ()=>{
-			t.modal.classList.toggle('show')
-		})
-
-		// https://uxdesign.cc/implementing-a-custom-drag-event-function-in-javascript-and-three-js-dc79ee545d85
-		t.renderer.domElement.addEventListener('mousemove', function (e) {
-			if (!t.mouseDown) {return}
-			e.preventDefault();
-			t.mouse.deltaX = e.clientX - t.mouse.cx
-			t.mouse.deltaY = e.clientY - t.mouse.cy
-			t.mouse.cx = e.clientX
-			t.mouse.cy = e.clientY
-		}, false)
-
-		t.renderer.domElement.addEventListener('mousedown', function (e) {
-			e.preventDefault()
-			t.mouseDown = true
-			t.mouse.cx = e.clientX
-			t.mouse.cy = e.clientY
-		}, false);
-
-		t.renderer.domElement.addEventListener('mouseup', function (e) {
-				e.preventDefault()
-				t.mouseDown = false
-		}, false);
+		t.addListeners()
 
 		if( t.isAndroid ) this.createAndroidAR()
 
     // this.settings()
+	}
+
+	addListeners() {
+		const t = this
+
+		t.info.addEventListener('click', ()=>{
+			t.modal.classList.toggle('show')
+		})
+
+		if(!t.isMobile) {
+			t.renderer.domElement.addEventListener( 'mousemove', (e)=> {
+				t.mouse.dx = ( e.clientX - t.windowHalfX )
+				t.mouse.dy = ( e.clientY - t.windowHalfY )
+
+				t.mouse.deltaX = e.clientX - t.mouse.cx
+				t.mouse.deltaY = e.clientY - t.mouse.cy
+				t.mouse.cx = e.clientX
+				t.mouse.cy = e.clientY
+			} )
+
+			// https://uxdesign.cc/implementing-a-custom-drag-event-function-in-javascript-and-three-js-dc79ee545d85
+			t.renderer.domElement.addEventListener('mousedown', function (e) {
+				e.preventDefault()
+				t.mouseDown = true
+				t.mouse.cx = e.clientX
+				t.mouse.cy = e.clientY
+			}, false)
+
+			t.renderer.domElement.addEventListener('mouseup', function (e) {
+				e.preventDefault()
+				t.mouseDown = false
+			}, false)
+		}
+
 	}
 
 	initPostprocessing() {
@@ -462,16 +493,17 @@ export default class AdPortal {
 
 	updateUserCam() {
 		if(this.isMobile) {
-			if (!this.rotation) return
+			if(this.mouseDown) return
+			if(!this.rotation) return
 
 			this.rotation.update()
 
-			if (!this.rotation.deviceOrientation) return
+			if(!this.rotation.deviceOrientation) return
 
 			const { beta, gamma } = this.rotation.deviceOrientation
 			// this.debug.innerHTML = `orientattion: ${beta}, ${gamma}, ${this.rotation}`
 
-			if (!beta || !gamma) return
+			if(!beta || !gamma) return
 
 			this.camera.lookAt(0, 0, 0)
 
