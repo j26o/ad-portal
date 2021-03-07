@@ -11,6 +11,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 
 
+import imagesLoaded from 'imagesloaded'
 // import fragment from '../assets/shaders/fragment.glsl'
 // import vertex from '../assets/shaders/vertex.glsl'
 
@@ -25,6 +26,9 @@ export default class AdPortal {
 		t.isIOS = (/iPad|iPhone|iPod/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !window.MSStream
 
 		t.isAndroid = /android/i.test(navigator.userAgent)
+
+		t.type = document.getElementById('app').dataset.type
+		t.file = document.getElementById('app').dataset.file
 
 		t.isPlaying = false
 		t.isParallax = false
@@ -96,42 +100,61 @@ export default class AdPortal {
 		this.loadModel()
   }
 
-	loadModel() {
+	async loadModel() {
 		const t = this
 
-		const loader = new GLTFLoader().setPath(this.options.path)
-		loader.load(t.options.product,
-			async (gltf) => {
-				const scale = t.options.mScale
-				gltf.scene.scale.set(scale, scale, scale)
-				t.model = gltf
+		if(t.type == 'gltf') {
+			const loader = new GLTFLoader().setPath(t.options.gltfPath)
+			loader.load(t.file,
+				async (gltf) => {
+					const scale = t.options.mScale
+					gltf.scene.scale.set(scale, scale, scale)
+					t.model = gltf.scene
 
-				gltf.scene.traverse( function( node ) {
-					if ( node.isMesh ) {
-						node.castShadow = true
-						// node.receiveShadow = true
-					}
-				})
+					gltf.scene.traverse( function( node ) {
+						if ( node.isMesh ) {
+							node.castShadow = true
+							// node.receiveShadow = true
+						}
+					})
 
-				// center gltf
-				const box = new THREE.Box3().setFromObject( gltf.scene )
-        // const size = box.getSize( new THREE.Vector3() ).length();
-        const center = box.getCenter( new THREE.Vector3() )
-				gltf.scene.position.x += ( gltf.scene.position.x - center.x )
-        gltf.scene.position.y += ( gltf.scene.position.y - center.y )
-        gltf.scene.position.z += ( gltf.scene.position.z - center.z )
+					// center gltf
+					const box = new THREE.Box3().setFromObject( gltf.scene )
+					// const size = box.getSize( new THREE.Vector3() ).length();
+					const center = box.getCenter( new THREE.Vector3() )
+					gltf.scene.position.x += ( gltf.scene.position.x - center.x )
+					gltf.scene.position.y += ( gltf.scene.position.y - center.y )
+					gltf.scene.position.z += ( gltf.scene.position.z - center.z )
 
-				t.exportUSDZ(gltf)
+					t.exportUSDZ(gltf)
 
-				t.init()
-			},
-			(xhr) => {
-				console.log((xhr.loaded / xhr.total * 100 ) + '% loaded')
-			},
-			(error) => {
-				console.log(error)
-			}
-		)
+					t.init()
+				},
+				(xhr) => {
+					console.log((xhr.loaded / xhr.total * 100 ) + '% loaded')
+				},
+				(error) => {
+					console.log(error)
+				}
+			)
+		}
+
+		if(t.type == 'poster') {
+			await imagesLoaded(document.querySelectorAll('poster'), { background: true })
+			const img = document.getElementById('poster')
+			const texture = new THREE.Texture(img)
+			texture.needsUpdate = true
+			const material = new THREE.MeshStandardMaterial( {
+				map: texture,
+				side: THREE.DoubleSide,
+				metalness: 0.2,
+				roughness: 1
+			} )
+			const geometry = new THREE.PlaneGeometry(1, 1)
+			t.model = new THREE.Mesh( geometry, material )
+
+			t.init()
+		}
   }
 
 	init() {
@@ -319,13 +342,13 @@ export default class AdPortal {
 		if(t.model) {
 			if(t.isMobile) {
 				const scale = t.options.mScale * 0.9
-				t.model.scene.scale.set(scale, scale, scale)
-				t.model.scene.position.z = t.model.scene.position.z - 0.08
+				t.model.scale.set(scale, scale, scale)
+				t.model.position.z = t.model.position.z - 0.08
 			}else {
-				t.model.scene.position.z = t.model.scene.position.z + 0.5
+				t.model.position.z = t.model.position.z + 0.5
 			}
 
-			t.objects.add( t.model.scene )
+			t.objects.add( t.model )
 		}
 
 		t.addLighting()
@@ -563,8 +586,10 @@ export default class AdPortal {
 	rotateModel() {
 		if(!this.mouseDown) return
 		if(!this.model) return
-		this.model.scene.rotation.y += this.mouse.deltaX / 100
-    this.model.scene.rotation.x += this.mouse.deltaY / 100
+		if(this.type == 'gltf') {
+			this.model.rotation.y += this.mouse.deltaX / 100
+			this.model.rotation.x += this.mouse.deltaY / 100
+		} else return
 	}
 
   render() {
@@ -610,8 +635,8 @@ new AdPortal({
 	fov: 70,
 	mScale: 4,
 	title: 'My Product',
-	product: 'MaterialsVariantsShoe.gltf',
-	path: 'models/gltf/',
+	gltfPath: 'models/gltf/',
+	imgPath: 'img/',
 	exposure: 1,
 	bloomThreshold: 0,
 	bloomStrength: 0.1,
@@ -626,6 +651,5 @@ new AdPortal({
 	spotLightAngle: 0.8,
 	spotLightDistance: 8,
 	spotLightPenumbra: 0.3,
-	spotLightDecay: 0.5
-
+	spotLightDecay: 0.5,
 })

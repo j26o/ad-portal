@@ -3,23 +3,23 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <meta name="description" content="">
-        <meta name="keywords" content="ad portal, three.js">
+        <meta name="description" content="" />
+        <meta name="keywords" content="ad portal, three.js" />
 
         <title>Ad Platform</title>
 
-        <link rel="stylesheet" href="/app.d34e6ee9.css">
+        <link rel="stylesheet" href="styles/app.scss">
 				<link rel="preconnect" href="https://fonts.gstatic.com">
 				<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
     </head>
     <body>
-        <div id="app" data-type="gltf" data-file="MaterialsVariantsShoe.gltf" class="container"></div>
+        <div id="app" data-type="poster" class="container"></div>
 				<!-- <div id="debug" class="debug"></div> -->
 				<div class="overlay hidden" id="start"><button class="start btn">Tap to interact</button></div>
 				<div class="overlay" id="loading"><button class="start btn">Loading product...</button></div>
 				<button id="buy" class="btn buy hidden">Get it now!</button>
-				<div class="btn ar hidden" id="usdzCta"><a id="usdz" rel="ar" href="" download="asset.usdz"><img class="arkit-img" id="button" width="60" height="40" src="/1.ab44913e.png"></a></div>
-				<button class="btn info hidden" id="info"><img src="/info-ico.8a08590e.svg" width="40" height="40" alt="More Info"></button>
+				<div class="btn ar hidden" id="usdzCta"><a id="usdz" rel="ar" href="" download="asset.usdz"><img class="arkit-img" id="button" width="60" height="40" src="assets/img/1.png"></a></div>
+				<button class="btn info hidden" id="info"><img src="assets/img/info-ico.svg" width="40" height="40" alt="More Info"></button>
 				<div id="mtouch" class="mtouch hidden"></div>
         <aside class="modal" id="modal">
 					<div class="modal_wrap">
@@ -30,6 +30,7 @@
 						<p>Traditionally, shoes have been made from leather, wood or canvas, but in the 2010s, they are increasingly made from rubber, plastics, and other petrochemical-derived materials. The shoe industry is $200 billion dollar a year industry. 90% of shoes end up in landfills, because the materials are hard to separate, recycle or otherwise reuse.</p>
 					</div>
 				</aside>
-				<script src="/script.7c337ef3.js"></script>
+				<img src="assets/img/cherifer.jpg" class="hidden poster" id="poster" alt="My Product">
+				<script src="script/index.js"></script>
     </body>
 </html>
