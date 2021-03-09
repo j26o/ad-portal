@@ -29,6 +29,7 @@ export default class AdPortal {
 
 		t.type = document.getElementById('app').dataset.type
 		t.file = document.getElementById('app').dataset.file
+		t.map = document.getElementById('app').dataset.map
 
 		t.isPlaying = false
 		t.isParallax = false
@@ -52,6 +53,8 @@ export default class AdPortal {
 
 		t.windowHalfX = t.width / 2
 		t.windowHalfY = t.height / 2
+
+		t.clock = new THREE.Clock()
 
 		t.postprocessing = {}
 
@@ -141,17 +144,68 @@ export default class AdPortal {
 
 		if(t.type == 'poster') {
 			await imagesLoaded(document.querySelectorAll('poster'), { background: true })
+
 			const img = document.getElementById('poster')
+			t.map = document.getElementById('map')
 			const texture = new THREE.Texture(img)
+			const textureMap = new THREE.Texture(t.map)
+
 			texture.needsUpdate = true
-			const material = new THREE.MeshStandardMaterial( {
+			textureMap.needsUpdate = true
+
+			t.material = new THREE.MeshStandardMaterial({
 				map: texture,
 				side: THREE.DoubleSide,
-				metalness: 0.2,
+				metalness: 0.1,
 				roughness: 1
-			} )
-			const geometry = new THREE.PlaneGeometry(1, 1)
-			t.model = new THREE.Mesh( geometry, material )
+			})
+
+			t.material.displacementScale = 3.0
+			const aspect = texture.image.height/texture.image.width
+
+			if(t.map) {
+				t.material.onBeforeCompile = function (shader) {
+					shader.uniforms.uTime = { value: 0 }
+					shader.uniforms.uTexture = { value: t.texture }
+					shader.uniforms.uTextureMap = { value: t.textureMap }
+					shader.uniforms.uMouse = { value: new THREE.Vector2(0,0) }
+
+					shader.vertexShader = 'uniform float uTime;\nvarying vec2 nUv;\n' + shader.vertexShader
+					shader.vertexShader = shader.vertexShader.replace('#include <clipping_planes_vertex>',
+					`
+					#include <clipping_planes_vertex>
+					nUv = vUv;
+					`)
+					// console.log(shader.vertexShader)
+
+					shader.fragmentShader = 'uniform float uTime;\nuniform sampler2D uTexture;\nuniform sampler2D uTextureMap;\nuniform vec2 uMouse;\nvarying vec2 nUv;\n' + shader.fragmentShader
+					// console.log(shader.fragmentShader)
+
+					shader.fragmentShader = shader.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+					`
+					// vec4 originalImage = vec4( outgoingLight, diffuseColor.a );
+					if(textureSize( uTexture, 0).x > 0 && textureSize( uTextureMap, 0).x > 0) {
+						vec4 depthDistortion = texture2D(uTextureMap, nUv);
+						float parallaxMult = depthDistortion.r;
+
+						vec2 parallax = (uMouse) * parallaxMult;
+
+						vec4 original = texture2D(uTexture, (nUv + parallax));
+
+						gl_FragColor = original;
+					} else {
+						gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+					}
+					`
+					)
+					console.log(shader.fragmentShader)
+
+					t.material = shader
+				}
+			}
+
+			const geometry = new THREE.PlaneGeometry(1, aspect)
+			t.model = new THREE.Mesh( geometry, t.material )
 
 			t.init()
 		}
@@ -223,7 +277,7 @@ export default class AdPortal {
 
 		if( t.isAndroid ) this.createAndroidAR()
 
-    // this.settings()
+    this.settings()
 	}
 
 	addListeners() {
@@ -258,6 +312,31 @@ export default class AdPortal {
 			}, false)
 		}
 
+	}
+
+	loadTextures() {
+		const textures = {
+			map: 'map.jpg',
+			normalMap: 'normalMap.jpg'
+		}
+
+		const params = {}
+
+		const promises = Object.keys(textures).map(key => {
+			return loadTexture(textures[key]).then(texture => {
+				params[key] = texture
+			})
+		})
+
+		return Promise.all(promises).then(() => {
+			console.log(params)
+		})
+	}
+
+	loadTexture(url) {
+		return new Promise(resolve => {
+			new THREE.TextureLoader().load(url, resolve)
+		})
 	}
 
 	initPostprocessing() {
@@ -341,11 +420,11 @@ export default class AdPortal {
 
 		if(t.model) {
 			if(t.isMobile) {
-				const scale = t.options.mScale * 0.9
+				const scale = t.options.mScale * 0.8
 				t.model.scale.set(scale, scale, scale)
 				t.model.position.z = t.model.position.z - 0.08
 			}else {
-				t.model.position.z = t.model.position.z + 0.5
+				t.model.position.z = t.type == 'gltf' ? t.model.position.z + 0.6 : t.options.p1pos.z + 0.3
 			}
 
 			t.objects.add( t.model )
@@ -370,11 +449,15 @@ export default class AdPortal {
 	addLighting() {
 		const t = this
 
+		t.options.p1pos = t.type == 'gltf' ? new THREE.Vector3(0.5, 1, 0) : new THREE.Vector3(0, 0, 0)
+		t.options.pointLightIntensity = t.type == 'gltf' ? 0.4 : 1
+		t.options.pointLight2Intensity = t.type == 'gltf' ? 0.6 : 0
+
 		t.ambientLight = new THREE.AmbientLight( 0xffffff, this.options.ambientLightIntensity )
 		t.objects.add( t.ambientLight )
 
 		t.pointLight = new THREE.PointLight( 0x888888, t.options.pointLightIntensity )
-		t.pointLight.position.set( 0.5, 1, 0 )
+		t.pointLight.position.copy(t.options.p1pos)
 		t.pointLight.castShadow = false
 		t.pointLight.shadow.radius = 8
 		t.objects.add( t.pointLight )
@@ -410,69 +493,84 @@ export default class AdPortal {
 		// t.objects.add( t.lightHelper )
 
 		// const sphereSize = 0.2
-		// const pointLightHelper = new THREE.PointLightHelper( t.pointLight2, sphereSize )
+		// const pointLightHelper = new THREE.PointLightHelper( t.pointLight, sphereSize )
 		// t.objects.add( pointLightHelper )
+		// const pointLightHelper2 = new THREE.PointLightHelper( t.pointLight2, sphereSize )
+		// t.objects.add( pointLightHelper2 )
 	}
 
 	settings() {
 		const t = this
     t.gui = new dat.GUI()
 
-		t.gui.add( t.options, 'bloomThreshold', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+		const bloom = t.gui.addFolder('Bloom')
+
+		bloom.add( t.options, 'bloomThreshold', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.bloomPass.threshold = Number( value )
 		})
-
-		t.gui.add( t.options, 'bloomStrength', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+		bloom.add( t.options, 'bloomStrength', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.bloomPass.strength = Number( value )
 		})
-
-		t.gui.add( t.options, 'bloomRadius', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+		bloom.add( t.options, 'bloomRadius', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.bloomPass.radius = Number( value )
 		})
 
-		t.gui.add( t.options, 'ambientLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+		const al = t.gui.addFolder('Ambient Light')
+		al.add( t.options, 'ambientLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.ambientLight.intensity = Number( value )
 		})
 
-		t.gui.add( t.options, 'pointLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+		const pl1 = t.gui.addFolder('Point Light 1')
+		pl1.add( t.options, 'pointLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.pointLight.intensity = Number( value )
 		})
+		pl1.add( t.options.p1pos, 'x', -2.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight.position.x = Number( value )
+		})
+		pl1.add( t.options.p1pos, 'y', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight.position.y = Number( value )
+		})
+		pl1.add( t.options.p1pos, 'z', -2.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight.position.z = Number( value )
+		})
 
-		t.gui.add( t.options, 'pointLight2Intensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+		const pl2 = t.gui.addFolder('Point Light 2')
+		pl2.add( t.options, 'pointLight2Intensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.pointLight2.intensity = Number( value )
 		})
-
-		const pointLight = {
-			y: 0.5
-		}
-
-		t.gui.add( pointLight, 'y', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+		pl2.add( t.options.p2pos, 'x', -2.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight2.position.x = Number( value )
+		})
+		pl2.add( t.options.p2pos, 'y', -2.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.pointLight2.position.y = Number( value )
 		})
+		pl2.add( t.options.p2pos, 'z', -2.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+			t.pointLight2.position.z = Number( value )
+		})
 
-		t.gui.add( t.options, 'spotLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+		const spot = t.gui.addFolder('Spot Light')
+		spot.add( t.options, 'spotLightIntensity', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.intensity = Number( value )
 		})
-		t.gui.add( t.options, 'spotLightNear', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightNear', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.shadow.camera.near = Number( value )
 		})
-		t.gui.add( t.options, 'spotLightFar', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightFar', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.shadow.camera.far = Number( value )
 		})
-		t.gui.add( t.options, 'spotLightFov', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightFov', 0.0, 3.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.shadow.camera.fov = Number( value )
 		})
-
-		t.gui.add( t.options, 'spotLightAngle', 0, Math.PI / 3 ).step( 0.01 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightAngle', 0, Math.PI / 3 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.angle = Number( value )
 		})
-		t.gui.add( t.options, 'spotLightDistance', 0, 100 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightDistance', 0, 100 ).onChange( function ( value ) {
 			t.spotLight.distance = Number( value )
 		})
-		t.gui.add( t.options, 'spotLightPenumbra', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightPenumbra', 0.0, 1.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.shadow.penumbra = Number( value )
 		})
-		t.gui.add( t.options, 'spotLightDecay', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
+		spot.add( t.options, 'spotLightDecay', 0.0, 2.0 ).step( 0.01 ).onChange( function ( value ) {
 			t.spotLight.decay = Number( value )
 		})
   }
@@ -514,32 +612,52 @@ export default class AdPortal {
 		t.postprocessing.composer.setSize( t.width, t.height )
   }
 
+	rotateModel() {
+		if(!this.mouseDown) return
+		if(!this.model) return
+		// if(this.type == 'gltf') {
+		// 	this.model.rotation.y += this.mouse.deltaX / 100
+		// 	this.model.rotation.x += this.mouse.deltaY / 100
+		// } else return
+		this.model.rotation.y += this.mouse.deltaX / 100
+			this.model.rotation.x += this.mouse.deltaY / 100
+	}
+
 	updateUserCam() {
-		if(this.isMobile) {
-			if(this.mouseDown) return
-			if(!this.rotation) return
+		const t = this
+		if(t.isMobile) {
+			if(t.mouseDown) return
+			if(!t.rotation) return
 
-			this.rotation.update()
+			t.rotation.update()
 
-			if(!this.rotation.deviceOrientation) return
+			if(!t.rotation.deviceOrientation) return
 
-			const { beta, gamma } = this.rotation.deviceOrientation
+			const { beta, gamma } = t.rotation.deviceOrientation
 			// this.debug.innerHTML = `orientattion: ${beta}, ${gamma}, ${this.rotation}`
 
 			if(!beta || !gamma) return
 
-			this.camera.lookAt(0, 0, 0)
+			t.camera.lookAt(0, 0, 0)
 
-			this.camera.position.x = -gamma / 90
-			this.camera.position.y = beta / 90
+			t.camera.position.x = -gamma / 90
+			t.camera.position.y = beta / 90
 
 			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
 		} else {
-			this.camera.lookAt(0, 0, 0)
+			t.camera.lookAt(0, 0, 0)
 
 			// this.camera.position.x = this.mouseX / this.windowHalfX
-			this.camera.position.x += ( (this.mouse.dx / this.windowHalfX) * 0.3 - this.camera.position.x ) * .05
-			this.camera.position.y -= ( (this.mouse.dy / this.windowHalfY) * 0.3 + this.camera.position.y ) * .05
+			t.camera.position.x += ( (t.mouse.dx / t.windowHalfX) * 0.3 - t.camera.position.x ) * .05
+			t.camera.position.y -= ( (t.mouse.dy / t.windowHalfY) * 0.3 + t.camera.position.y ) * .05
+
+			if (t.map && t.material.uniforms) {
+				let timer = t.clock.getElapsedTime()
+				t.material.uniforms.uTime.value = timer
+				t.material.uniforms.uMouse.value.x = t.camera.position.x
+				t.material.uniforms.uMouse.value.y = t.camera.position.y
+			}
+
 			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
 		}
 	}
@@ -581,15 +699,6 @@ export default class AdPortal {
 
 		this.renderer.setRenderTarget(null)
 		this.renderer.clear()
-	}
-
-	rotateModel() {
-		if(!this.mouseDown) return
-		if(!this.model) return
-		if(this.type == 'gltf') {
-			this.model.rotation.y += this.mouse.deltaX / 100
-			this.model.rotation.x += this.mouse.deltaY / 100
-		} else return
 	}
 
   render() {
@@ -638,9 +747,9 @@ new AdPortal({
 	gltfPath: 'models/gltf/',
 	imgPath: 'img/',
 	exposure: 1,
-	bloomThreshold: 0,
-	bloomStrength: 0.1,
-	bloomRadius: 0.1,
+	bloomThreshold: 0.08,
+	bloomStrength: 0.2,
+	bloomRadius: 0.2,
 	ambientLightIntensity: 0.08,
 	pointLightIntensity: 0.4,
 	pointLight2Intensity: 0.6,
@@ -652,4 +761,6 @@ new AdPortal({
 	spotLightDistance: 8,
 	spotLightPenumbra: 0.3,
 	spotLightDecay: 0.5,
+	p1pos: new THREE.Vector3(0,0,0),
+	p2pos: new THREE.Vector3(-0.5, 0.4, 1)
 })
