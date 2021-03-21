@@ -11,7 +11,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 
 
-import imagesLoaded from 'imagesloaded'
+// import imagesLoaded from 'imagesloaded'
 // import fragment from '../assets/shaders/fragment.glsl'
 // import vertex from '../assets/shaders/vertex.glsl'
 
@@ -26,10 +26,6 @@ export default class AdPortal {
 		t.isIOS = (/iPad|iPhone|iPod/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !window.MSStream
 
 		t.isAndroid = /android/i.test(navigator.userAgent)
-
-		t.type = document.getElementById('app').dataset.type
-		t.file = document.getElementById('app').dataset.file
-		t.map = document.getElementById('app').dataset.map
 
 		t.isPlaying = false
 		t.isParallax = false
@@ -100,115 +96,7 @@ export default class AdPortal {
 		}
 
 		// t.debug =  document.getElementById('debug')
-		this.loadModel()
-  }
-
-	async loadModel() {
-		const t = this
-
-		if(t.type == 'gltf') {
-			const loader = new GLTFLoader().setPath(t.options.gltfPath)
-			loader.load(t.file,
-				async (gltf) => {
-					const scale = t.options.mScale
-					gltf.scene.scale.set(scale, scale, scale)
-					t.model = gltf.scene
-
-					gltf.scene.traverse( function( node ) {
-						if ( node.isMesh ) {
-							node.castShadow = true
-							// node.receiveShadow = true
-						}
-					})
-
-					// center gltf
-					const box = new THREE.Box3().setFromObject( gltf.scene )
-					// const size = box.getSize( new THREE.Vector3() ).length();
-					const center = box.getCenter( new THREE.Vector3() )
-					gltf.scene.position.x += ( gltf.scene.position.x - center.x )
-					gltf.scene.position.y += ( gltf.scene.position.y - center.y )
-					gltf.scene.position.z += ( gltf.scene.position.z - center.z )
-
-					t.exportUSDZ(gltf)
-
-					t.init()
-				},
-				(xhr) => {
-					console.log((xhr.loaded / xhr.total * 100 ) + '% loaded')
-				},
-				(error) => {
-					console.log(error)
-				}
-			)
-		}
-
-		if(t.type == 'poster') {
-			await imagesLoaded(document.querySelectorAll('poster'), { background: true })
-
-			const img = document.getElementById('poster')
-			t.map = document.getElementById('map')
-			const texture = new THREE.Texture(img)
-			const textureMap = new THREE.Texture(t.map)
-
-			texture.needsUpdate = true
-			textureMap.needsUpdate = true
-
-			t.material = new THREE.MeshStandardMaterial({
-				map: texture,
-				side: THREE.DoubleSide,
-				metalness: 0.1,
-				roughness: 1
-			})
-
-			t.material.displacementScale = 3.0
-			const aspect = texture.image.height/texture.image.width
-
-			if(t.map) {
-				t.material.onBeforeCompile = function (shader) {
-					shader.uniforms.uTime = { value: 0 }
-					shader.uniforms.uTexture = { value: t.texture }
-					shader.uniforms.uTextureMap = { value: t.textureMap }
-					shader.uniforms.uMouse = { value: new THREE.Vector2(0,0) }
-
-					shader.vertexShader = 'uniform float uTime;\nvarying vec2 nUv;\n' + shader.vertexShader
-					shader.vertexShader = shader.vertexShader.replace('#include <clipping_planes_vertex>',
-					`
-					#include <clipping_planes_vertex>
-					nUv = vUv;
-					`)
-					// console.log(shader.vertexShader)
-
-					shader.fragmentShader = 'uniform float uTime;\nuniform sampler2D uTexture;\nuniform sampler2D uTextureMap;\nuniform vec2 uMouse;\nvarying vec2 nUv;\n' + shader.fragmentShader
-					// console.log(shader.fragmentShader)
-
-					shader.fragmentShader = shader.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-					`
-					// vec4 originalImage = vec4( outgoingLight, diffuseColor.a );
-					if(textureSize( uTexture, 0).x > 0 && textureSize( uTextureMap, 0).x > 0) {
-						vec4 depthDistortion = texture2D(uTextureMap, nUv);
-						float parallaxMult = depthDistortion.r;
-
-						vec2 parallax = (uMouse) * parallaxMult;
-
-						vec4 original = texture2D(uTexture, (nUv + parallax));
-
-						gl_FragColor = original;
-					} else {
-						gl_FragColor = vec4( outgoingLight, diffuseColor.a );
-					}
-					`
-					)
-					console.log(shader.fragmentShader)
-
-					t.material = shader
-				}
-			}
-
-			const geometry = new THREE.PlaneGeometry(1, aspect)
-			t.model = new THREE.Mesh( geometry, t.material )
-
-			t.init()
-		}
+		t.loadAssets()
   }
 
 	init() {
@@ -277,7 +165,7 @@ export default class AdPortal {
 
 		if( t.isAndroid ) this.createAndroidAR()
 
-    this.settings()
+    // this.settings()
 	}
 
 	addListeners() {
@@ -314,23 +202,145 @@ export default class AdPortal {
 
 	}
 
-	loadTextures() {
-		const textures = {
-			map: 'map.jpg',
-			normalMap: 'normalMap.jpg'
-		}
+	loadAssets() {
+		const t = this
 
-		const params = {}
+		t.type = document.getElementById('app').dataset.type
+		t.file = document.getElementById('app').dataset.file
+		t.map = document.getElementById('app').dataset.map
 
-		const promises = Object.keys(textures).map(key => {
-			return loadTexture(textures[key]).then(texture => {
-				params[key] = texture
-			})
+		t.manager = new THREE.LoadingManager()
+
+		if(t.type == 'gltf') t.load3D()
+
+		if(t.type == 'poster') t.loadPoster()
+  }
+
+	load3D() {
+		const t = this
+
+		const loader = new GLTFLoader().setPath(t.options.gltfPath)
+		loader.load(t.file,
+			async (gltf) => {
+				const scale = t.options.mScale
+				gltf.scene.scale.set(scale, scale, scale)
+				t.model = gltf.scene
+
+				gltf.scene.traverse( function( node ) {
+					if ( node.isMesh ) {
+						node.castShadow = true
+						// node.receiveShadow = true
+					}
+				})
+
+				// center gltf
+				const box = new THREE.Box3().setFromObject( gltf.scene )
+				// const size = box.getSize( new THREE.Vector3() ).length();
+				const center = box.getCenter( new THREE.Vector3() )
+				gltf.scene.position.x += ( gltf.scene.position.x - center.x )
+				gltf.scene.position.y += ( gltf.scene.position.y - center.y )
+				gltf.scene.position.z += ( gltf.scene.position.z - center.z )
+
+				t.exportUSDZ(gltf)
+
+				t.init()
+			},
+			(xhr) => {
+				console.log((xhr.loaded / xhr.total * 100 ) + '% loaded')
+			},
+			(error) => {
+				console.log(error)
+			}
+		)
+	}
+
+	async loadPoster() {
+		const t = this
+		const promises = [
+			t.loadTexture(`${t.options.imgPath}${t.file}`)
+		]
+
+		if(t.map) promises.push(t.loadTexture(`${t.options.imgPath}${t.map}`))
+
+		await Promise.all(promises).then((result) => {
+			t.texture = result[0]
+			t.textureMap = result[1]
+
+			t.texture.needsUpdate = true
+			t.textureMap.needsUpdate = true
 		})
 
-		return Promise.all(promises).then(() => {
-			console.log(params)
+		t.material = new THREE.MeshStandardMaterial({
+			map: t.texture,
+			metalness: 0.1,
+			roughness: 1,
+			displacementMap: t.textureMap,
+			displacementScale: t.options.displacementScale,
+			displacementBias: 0
 		})
+
+		t.aspect = t.texture.image.height/t.texture.image.width
+
+		// https://github.com/akella/fake3d
+		// https://fulmicoton.com/posts/wiggle/
+		// https://codepen.io/robin-dela/pen/vaQQNL
+
+		// if(t.map) {
+		// 	t.material.onBeforeCompile = function (shader) {
+		// 		shader.uniforms.u_time = { value: 0 }
+		// 		shader.uniforms.u_texture = { value: t.texture }
+		// 		shader.uniforms.u_textureMap = { value: t.textureMap }
+		// 		shader.uniforms.u_mouse = { value: new THREE.Vector2(0,0) }
+		// 		shader.uniforms.u_aspect =  {value: t.aspect }
+
+		// 		console.log(t.aspect)
+
+		// 		shader.vertexShader = 'uniform float u_aspect;\nuniform float u_time;\nvarying vec2 v_uv;\nuniform vec2 u_mouse;\nuniform sampler2D u_textureMap;\n' + shader.vertexShader
+		// 		// shader.vertexShader = shader.vertexShader.replace('vViewPosition = - mvPosition.xyz;',
+		// 		// 	`
+		// 		// 	float XtoZ = 1.11146; // tan( 1.0144686 / 2.0 ) * 2.0;
+		// 		// 	float YtoZ = 0.83359; // tan( 0.7898090 / 2.0 ) * 2.0;
+
+		// 		// 	vec4 color = texture2D( u_textureMap, vUv );
+		// 		// 	float depth = ( color.r + color.g + color.b ) / 3.0;
+		// 		// 	float z = ( 1.0 - depth ) * (5. - 1.) + 1.;
+
+		// 		// 	vec4 pos = vec4(
+		// 		// 		mvPosition.x * z * XtoZ,
+		// 		// 		mvPosition.y * z * YtoZ,
+		// 		// 		- z + 0.01,
+		// 		// 		1.0);
+
+		// 		// 	// gl_PointSize = pointSize;
+		// 		// 	// gl_Position = projectionMatrix * modelViewMatrix * pos;
+
+		// 		// 	vViewPosition = - mvPosition.xyz*color.r;
+		// 		// 	`)
+
+		// 			// console.log(shader.vertexShader)
+
+		// 			shader.fragmentShader = 'uniform float u_aspect;\nuniform float u_time;\nuniform sampler2D u_texture;\nuniform sampler2D u_textureMap;\nuniform vec2 u_mouse;\nvarying vec2 v_uv;\n' + shader.fragmentShader
+
+		// 			shader.fragmentShader = shader.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+		// 			`
+		// 				vec4 depth = texture2D(u_textureMap, vUv);
+		// 				vec4 color = vec4(outgoingLight, diffuseColor.a);
+
+		// 				vec2 nUv = vUv + (u_mouse * u_aspect * 0.1 * depth.r);
+
+		// 				vec4 nColor = texture2D(u_texture, nUv);
+		// 				gl_FragColor = color;
+		// 			`
+		// 		)
+
+		// 		t.material = shader
+		// 	}
+		// }
+
+		const geometry = new THREE.PlaneGeometry(1, t.aspect, 32, 32)
+		t.model = new THREE.Mesh( geometry, t.material )
+
+		t.init()
 	}
 
 	loadTexture(url) {
@@ -424,7 +434,7 @@ export default class AdPortal {
 				t.model.scale.set(scale, scale, scale)
 				t.model.position.z = t.model.position.z - 0.08
 			}else {
-				t.model.position.z = t.type == 'gltf' ? t.model.position.z + 0.6 : t.options.p1pos.z + 0.3
+				t.model.position.z = t.type == 'gltf' ? t.model.position.z + 0.6 : t.options.p1pos.z + 0.6
 			}
 
 			t.objects.add( t.model )
@@ -615,12 +625,12 @@ export default class AdPortal {
 	rotateModel() {
 		if(!this.mouseDown) return
 		if(!this.model) return
-		// if(this.type == 'gltf') {
-		// 	this.model.rotation.y += this.mouse.deltaX / 100
-		// 	this.model.rotation.x += this.mouse.deltaY / 100
-		// } else return
-		this.model.rotation.y += this.mouse.deltaX / 100
+		if(this.type == 'gltf') {
+			this.model.rotation.y += this.mouse.deltaX / 100
 			this.model.rotation.x += this.mouse.deltaY / 100
+		} else return
+		// this.model.rotation.y += this.mouse.deltaX / 100
+		// 	this.model.rotation.x += this.mouse.deltaY / 100
 	}
 
 	updateUserCam() {
@@ -653,9 +663,9 @@ export default class AdPortal {
 
 			if (t.map && t.material.uniforms) {
 				let timer = t.clock.getElapsedTime()
-				t.material.uniforms.uTime.value = timer
-				t.material.uniforms.uMouse.value.x = t.camera.position.x
-				t.material.uniforms.uMouse.value.y = t.camera.position.y
+				t.material.uniforms.u_time.value = timer
+				t.material.uniforms.u_mouse.value.x = t.camera.position.x
+				t.material.uniforms.u_mouse.value.y = t.camera.position.y
 			}
 
 			// this.camera.position.z = 1 - 0.5 * Math.min(Math.abs(this.camera.position.x) + Math.abs(this.camera.position.y), 1)
@@ -746,6 +756,8 @@ new AdPortal({
 	title: 'My Product',
 	gltfPath: 'models/gltf/',
 	imgPath: 'img/',
+	displacementScale: 0.25,
+	posterScale: 1.5,
 	exposure: 1,
 	bloomThreshold: 0.08,
 	bloomStrength: 0.2,

@@ -30,9 +30,9 @@
   "private": true,
   "scripts": {
     "clean": "rm dist/bundle.js",
-    "start": "parcel src/index.html src/2.html",
-    "start-https": "parcel src/index.html src/2.html --https",
-    "build": "parcel build src/index.html"
+    "start": "parcel src/index.html src/2.html src/3.html src/4.html src/5.html",
+    "start-https": "parcel src/index.html src/2.html src/3.html src/4.html src/5.html --https",
+    "build": "parcel build src/index.html src/2.html src/3.html src/4.html src/5.html"
   },
   "dependencies": {
     "dat.gui": "^0.7.7",

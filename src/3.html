@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <meta name="description" content="" />
+        <meta name="keywords" content="ad portal, three.js" />
+
+        <title>Image | AR Ad</title>
+
+        <link rel="stylesheet" href="styles/app.scss">
+				<link rel="preconnect" href="https://fonts.gstatic.com">
+				<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div id="app" data-type="poster" class="container" data-file="dog.jpg" data-map="dog-map.jpg"></div>
+				<!-- <div id="debug" class="debug"></div> -->
+				<div class="overlay hidden" id="start"><button class="start btn">Tap to interact</button></div>
+				<div class="overlay" id="loading"><button class="start btn">Loading product...</button></div>
+				<button id="buy" class="btn buy hidden">Get it now!</button>
+				<div class="btn ar hidden" id="usdzCta"><a id="usdz" rel="ar" href="" download="asset.usdz"><img class="arkit-img" id="button" width="60" height="40" src="assets/img/1.png"></a></div>
+				<button class="btn info hidden" id="info"><img src="assets/img/info-ico.svg" width="40" height="40" alt="More Info"></button>
+				<div id="mtouch" class="mtouch hidden"></div>
+        <aside class="modal" id="modal">
+					<div class="modal_wrap">
+						<p>The pug is a breed of dog with physically distinctive features of a wrinkly, short-muzzled face, and curled tail. The breed has a fine, glossy coat that comes in a variety of colours, most often light brown (fawn) or black, and a compact, square body with well-developed muscles.</p>
+
+						<p>Pugs were brought from China to Europe in the sixteenth century and were popularized in Western Europe by the House of Orange of the Netherlands, and the House of Stuart.In the United Kingdom, in the nineteenth century, Queen Victoria developed a passion for pugs which she passed on to other members of the Royal family.</p>
+					</div>
+				</aside>
+				<!-- <img src="assets/img/ball.jpg" class="hidden poster" id="poster" alt="My Product">
+				<img src="assets/img/ball-map.jpg" class="hidden poster" id="map" alt="My Product"> -->
+				<script src="script/index.js"></script>
+    </body>
+</html>
