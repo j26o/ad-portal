@@ -151,7 +151,7 @@ export default class AdPortal {
 		window.addEventListener("resize", t.resize.bind(t))
     t.resize()
 
-		if( t.isIOS ) document.getElementById('usdzCta').classList.remove('hidden')
+		if( t.isIOS && t.type == 'gltf' ) document.getElementById('usdzCta').classList.remove('hidden')
 		if( t.isMobile ) t.startButton.classList.remove('hidden')
 		document.getElementById('buy').classList.remove('hidden')
 		document.getElementById('loading').remove()
