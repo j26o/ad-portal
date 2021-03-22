@@ -433,6 +433,12 @@ export default class AdPortal {
 				const scale = t.options.mScale * 0.8
 				t.model.scale.set(scale, scale, scale)
 				t.model.position.z = t.model.position.z - 0.08
+
+				if(t.type == 'poster') {
+					const ms = 0.5
+					t.model.scale.set(scale*ms, scale*ms, scale*ms)
+					// t.model.position.z = t.model.position.z - 0.2
+				}
 			}else {
 				t.model.position.z = t.type == 'gltf' ? t.model.position.z + 0.6 : t.options.p1pos.z + 0.6
 			}
